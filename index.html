@@ -11,7 +11,10 @@
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
       <!-- Header -->
       <div class="bg-emerald-600 px-6 py-5">
-        <h1 class="text-white text-xl font-bold">OpenShop Setup Wizard</h1>
+        <div class="flex justify-between items-center">
+          <h1 class="text-white text-xl font-bold">OpenShop Setup Wizard</h1>
+          <button id="lang-toggle" onclick="toggleLang()" class="text-emerald-100 text-sm hover:text-white transition-colors border border-emerald-400 rounded px-2 py-0.5">中文</button>
+        </div>
         <p id="progress-text" class="text-emerald-100 text-sm mt-1">Step 1 of 8</p>
         <div class="mt-3 bg-emerald-500 rounded-full h-2">
           <div id="progress-bar" class="bg-white rounded-full h-2 transition-all duration-300" style="width: 12.5%"></div>
@@ -142,6 +145,164 @@ begin
 end;
 $$ language plpgsql security definer;`;
 
+    let wizardLang = 'en';
+    const i18n = {
+      en: {
+        title: 'OpenShop Setup Wizard',
+        langToggle: '中文',
+        stepOf: (c, t) => `Step ${c} of ${t}`,
+        next: 'Next',
+        back: 'Back',
+        done: 'Done',
+        welcome: {
+          emoji: '🛍️',
+          heading: 'Welcome to OpenShop',
+          desc: 'Launch your own online store in about 15 minutes — no coding required.',
+          needs: '<strong>What you\'ll need:</strong><ul class="mt-2 space-y-1 list-disc list-inside"><li>A <strong>Supabase</strong> account (free) — database &amp; auth</li><li>A <strong>Stripe</strong> account (free) — payments</li><li>A <strong>Resend</strong> account (free) — email notifications</li><li>A <strong>Vercel</strong> account (free) — hosting</li></ul>',
+          footer: 'Each step will guide you through creating and configuring each service. Let\'s get started!',
+        },
+        supabase: {
+          heading: 'Supabase Setup',
+          desc: 'Supabase is your database and authentication provider.',
+          steps: '<ol class="list-decimal list-inside space-y-2"><li>Go to <a href="https://supabase.com/dashboard/projects" target="_blank" class="underline font-medium">supabase.com/dashboard</a> and create a free account</li><li>Click <strong>New Project</strong>, pick a name and password, then wait for it to finish</li><li>Go to <a href="https://supabase.com/dashboard/project/_/settings/api" target="_blank" class="underline font-medium">Project Settings → API</a> (or click Settings ⚙️ in the sidebar → API)</li><li>You\'ll see <strong>Project URL</strong> at the top — copy it</li><li>Under <strong>Project API keys</strong>, copy <code class="bg-blue-100 px-1 rounded">anon public</code> and <code class="bg-blue-100 px-1 rounded">service_role</code></li></ol>',
+          url: 'Project URL',
+          anonKey: 'Anon Key',
+          serviceKey: 'Service Role Key',
+          validate: 'Validate Connection',
+          success: 'Connection successful! Now run the database schema:',
+          sqlSteps: ['Click <strong>Copy SQL</strong> below', 'Open the <a id="sql-editor-link" href="#" target="_blank" class="text-emerald-600 underline">Supabase SQL Editor</a>', 'Paste the SQL and click <strong>Run</strong>'],
+          copySQL: 'Copy SQL',
+        },
+        resend: {
+          heading: 'Resend Setup',
+          optional: '(Optional)',
+          desc: 'Resend sends order confirmation emails to customers and new-order alerts to you. You can skip this and add it later.',
+          steps: '<ol class="list-decimal list-inside space-y-2"><li>Go to <a href="https://resend.com/signup" target="_blank" class="underline font-medium">resend.com/signup</a> and create a free account</li><li>Go to <a href="https://resend.com/api-keys" target="_blank" class="underline font-medium">API Keys</a> and click <strong>Create API Key</strong></li><li>Copy the key (starts with <code class="bg-blue-100 px-1 rounded">re_</code>) — you only see it once!</li></ol>',
+          apiKey: 'API Key',
+          fromEmail: 'From Email',
+          adminEmail: 'Admin Email (where you receive order alerts)',
+          skip: 'Skip — I\'ll add email later',
+        },
+        stripe: {
+          heading: 'Stripe Setup',
+          desc: 'Stripe handles payments including Apple Pay and Google Pay.',
+          steps: '<ol class="list-decimal list-inside space-y-2"><li>Go to <a href="https://dashboard.stripe.com/register" target="_blank" class="underline font-medium">stripe.com</a> and create a free account</li><li>Go to <a href="https://dashboard.stripe.com/test/apikeys" target="_blank" class="underline font-medium">Developers → API keys</a></li><li>Copy the <strong>Publishable key</strong> (starts with <code class="bg-blue-100 px-1 rounded">pk_</code>)</li><li>Click <strong>Reveal test key</strong> to see the <strong>Secret key</strong> (starts with <code class="bg-blue-100 px-1 rounded">sk_</code>)</li><li>💡 Use test keys first, switch to live keys when you\'re ready to accept real payments</li></ol>',
+          publishableKey: 'Publishable Key',
+          secretKey: 'Secret Key',
+        },
+        customize: {
+          heading: 'Customize Your Store',
+          desc: 'Set your store name, language, and theme color.',
+          storeName: 'Store Name',
+          language: 'Language',
+          themeColor: 'Theme Color',
+          selected: 'Selected',
+        },
+        deploy: {
+          heading: 'Deploy to Vercel',
+          desc: 'Deploy your store with one click. All your settings will be pre-filled.',
+          info: '<strong>What happens next:</strong><ol class="list-decimal list-inside space-y-1 mt-2"><li>Click the button below — it opens Vercel with all your settings pre-filled</li><li>Sign in to Vercel (free) with your GitHub account</li><li>Vercel will fork the OpenShop code into your GitHub and deploy it</li><li>Wait ~60 seconds — your store URL will appear!</li></ol>',
+          button: '▲ Deploy to Vercel',
+          buttonDesc: 'Opens Vercel with your config pre-filled',
+          afterDeploy: 'After deploying, note your store URL (e.g. <code class="bg-gray-100 px-1 rounded">https://myshop.vercel.app</code>) — you\'ll need it in the next step.',
+        },
+        postDeploy: {
+          heading: 'Post-Deploy Setup',
+          desc: 'Two final steps to complete your store setup.',
+          webhook: '1. Set up Stripe Webhook',
+          webhookSteps: '<ol class="list-decimal list-inside space-y-2"><li>Open <a href="https://dashboard.stripe.com/test/webhooks/create" target="_blank" class="underline font-medium">Stripe → Webhooks → Add endpoint</a></li><li>In <strong>Endpoint URL</strong>, paste: <code class="bg-blue-100 px-1 rounded">{your-store-url}/api/webhooks/stripe</code></li><li>Click <strong>Select events</strong> → search <code>checkout.session.completed</code> → check it → <strong>Add events</strong></li><li>Click <strong>Add endpoint</strong></li><li>On the endpoint page, click <strong>Reveal</strong> under <strong>Signing secret</strong> — copy it (starts with <code class="bg-blue-100 px-1 rounded">whsec_</code>)</li><li>Go to <a href="https://vercel.com/dashboard" target="_blank" class="underline font-medium">Vercel Dashboard</a> → your project → <strong>Settings → Environment Variables</strong></li><li>Add variable: name = <code class="bg-blue-100 px-1 rounded">STRIPE_WEBHOOK_SECRET</code>, value = the signing secret you copied</li><li>Go to <strong>Deployments</strong> tab → click <strong>⋮</strong> on the latest → <strong>Redeploy</strong></li></ol>',
+          admin: '2. Create Admin Account',
+          adminSteps: '<ol class="list-decimal list-inside space-y-2"><li>Go to <a href="https://supabase.com/dashboard/project/_/auth/users" target="_blank" class="underline font-medium">Supabase → Authentication → Users</a></li><li>Click <strong>Add user → Create new user</strong></li><li>Enter your email and a password</li><li>You can now log in at <code class="bg-blue-100 px-1 rounded">{your-store-url}/admin</code></li></ol>',
+        },
+        complete: {
+          emoji: '🎉',
+          heading: 'Your Store is Live!',
+          desc: 'Congratulations! Your OpenShop store is set up and ready to sell.',
+          quickLinks: 'Quick Links',
+          storefront: 'Storefront',
+          adminLink: 'Admin',
+          footer: 'Add your first product from the admin dashboard and start sharing your store link with customers!',
+        },
+      },
+      zh: {
+        title: 'OpenShop 设置向导',
+        langToggle: 'EN',
+        stepOf: (c, t) => `第 ${c} 步，共 ${t} 步`,
+        next: '下一步',
+        back: '上一步',
+        done: '完成',
+        welcome: {
+          emoji: '🛍️',
+          heading: '欢迎使用 OpenShop',
+          desc: '约 15 分钟内启动您的在线商店 — 无需编程。',
+          needs: '<strong>您需要准备：</strong><ul class="mt-2 space-y-1 list-disc list-inside"><li><strong>Supabase</strong> 账号（免费）— 数据库和认证</li><li><strong>Stripe</strong> 账号（免费）— 支付</li><li><strong>Resend</strong> 账号（免费）— 邮件通知</li><li><strong>Vercel</strong> 账号（免费）— 托管</li></ul>',
+          footer: '每一步都会引导您创建和配置所需的服务。让我们开始吧！',
+        },
+        supabase: {
+          heading: 'Supabase 设置',
+          desc: 'Supabase 是您的数据库和认证服务。',
+          steps: '<ol class="list-decimal list-inside space-y-2"><li>打开 <a href="https://supabase.com/dashboard/projects" target="_blank" class="underline font-medium">supabase.com/dashboard</a> 并创建免费账号</li><li>点击 <strong>New Project</strong>，输入名称和密码，等待创建完成</li><li>打开 <a href="https://supabase.com/dashboard/project/_/settings/api" target="_blank" class="underline font-medium">Project Settings → API</a>（或点击侧栏的 Settings ⚙️ → API）</li><li>顶部可以看到 <strong>Project URL</strong> — 复制它</li><li>在 <strong>Project API keys</strong> 下，复制 <code class="bg-blue-100 px-1 rounded">anon public</code> 和 <code class="bg-blue-100 px-1 rounded">service_role</code></li></ol>',
+          url: '项目 URL',
+          anonKey: 'Anon Key（匿名密钥）',
+          serviceKey: 'Service Role Key（服务角色密钥）',
+          validate: '验证连接',
+          success: '连接成功！现在运行数据库架构：',
+          sqlSteps: ['点击下方 <strong>复制 SQL</strong>', '打开 <a id="sql-editor-link" href="#" target="_blank" class="text-emerald-600 underline">Supabase SQL 编辑器</a>', '粘贴 SQL 并点击 <strong>Run</strong>'],
+          copySQL: '复制 SQL',
+        },
+        resend: {
+          heading: 'Resend 设置',
+          optional: '（可选）',
+          desc: 'Resend 用于向客户发送订单确认邮件，并向您发送新订单提醒。您可以跳过此步骤，稍后添加。',
+          steps: '<ol class="list-decimal list-inside space-y-2"><li>打开 <a href="https://resend.com/signup" target="_blank" class="underline font-medium">resend.com/signup</a> 并创建免费账号</li><li>打开 <a href="https://resend.com/api-keys" target="_blank" class="underline font-medium">API Keys</a> 并点击 <strong>Create API Key</strong></li><li>复制密钥（以 <code class="bg-blue-100 px-1 rounded">re_</code> 开头）— 只显示一次！</li></ol>',
+          apiKey: 'API 密钥',
+          fromEmail: '发件人邮箱',
+          adminEmail: '管理员邮箱（接收订单提醒）',
+          skip: '跳过 — 稍后添加邮件功能',
+        },
+        stripe: {
+          heading: 'Stripe 设置',
+          desc: 'Stripe 处理支付，包括 Apple Pay 和 Google Pay。',
+          steps: '<ol class="list-decimal list-inside space-y-2"><li>打开 <a href="https://dashboard.stripe.com/register" target="_blank" class="underline font-medium">stripe.com</a> 并创建免费账号</li><li>打开 <a href="https://dashboard.stripe.com/test/apikeys" target="_blank" class="underline font-medium">Developers → API keys</a></li><li>复制 <strong>Publishable key</strong>（以 <code class="bg-blue-100 px-1 rounded">pk_</code> 开头）</li><li>点击 <strong>Reveal test key</strong> 查看 <strong>Secret key</strong>（以 <code class="bg-blue-100 px-1 rounded">sk_</code> 开头）</li><li>💡 先使用测试密钥，准备好接受真实付款后再切换为正式密钥</li></ol>',
+          publishableKey: 'Publishable Key（公开密钥）',
+          secretKey: 'Secret Key（密钥）',
+        },
+        customize: {
+          heading: '自定义您的商店',
+          desc: '设置商店名称、语言和主题颜色。',
+          storeName: '商店名称',
+          language: '语言',
+          themeColor: '主题颜色',
+          selected: '已选择',
+        },
+        deploy: {
+          heading: '部署到 Vercel',
+          desc: '一键部署您的商店，所有设置将自动填入。',
+          info: '<strong>接下来会发生什么：</strong><ol class="list-decimal list-inside space-y-1 mt-2"><li>点击下方按钮 — 将打开 Vercel 并自动填入您的配置</li><li>使用 GitHub 账号登录 Vercel（免费）</li><li>Vercel 会将 OpenShop 代码 Fork 到您的 GitHub 并部署</li><li>等待约 60 秒 — 您的商店 URL 就会出现！</li></ol>',
+          button: '▲ 部署到 Vercel',
+          buttonDesc: '打开 Vercel 并自动填入您的配置',
+          afterDeploy: '部署完成后，记下您的商店 URL（例如 <code class="bg-gray-100 px-1 rounded">https://myshop.vercel.app</code>）— 下一步需要用到。',
+        },
+        postDeploy: {
+          heading: '部署后设置',
+          desc: '完成商店设置的最后两步。',
+          webhook: '1. 设置 Stripe Webhook',
+          webhookSteps: '<ol class="list-decimal list-inside space-y-2"><li>打开 <a href="https://dashboard.stripe.com/test/webhooks/create" target="_blank" class="underline font-medium">Stripe → Webhooks → Add endpoint</a></li><li>在 <strong>Endpoint URL</strong> 中粘贴：<code class="bg-blue-100 px-1 rounded">{your-store-url}/api/webhooks/stripe</code></li><li>点击 <strong>Select events</strong> → 搜索 <code>checkout.session.completed</code> → 勾选 → <strong>Add events</strong></li><li>点击 <strong>Add endpoint</strong></li><li>在端点页面，点击 <strong>Signing secret</strong> 下的 <strong>Reveal</strong> — 复制（以 <code class="bg-blue-100 px-1 rounded">whsec_</code> 开头）</li><li>打开 <a href="https://vercel.com/dashboard" target="_blank" class="underline font-medium">Vercel 控制台</a> → 您的项目 → <strong>Settings → Environment Variables</strong></li><li>添加变量：名称 = <code class="bg-blue-100 px-1 rounded">STRIPE_WEBHOOK_SECRET</code>，值 = 刚才复制的签名密钥</li><li>打开 <strong>Deployments</strong> 标签 → 点击最新部署的 <strong>⋮</strong> → <strong>Redeploy</strong></li></ol>',
+          admin: '2. 创建管理员账号',
+          adminSteps: '<ol class="list-decimal list-inside space-y-2"><li>打开 <a href="https://supabase.com/dashboard/project/_/auth/users" target="_blank" class="underline font-medium">Supabase → Authentication → Users</a></li><li>点击 <strong>Add user → Create new user</strong></li><li>输入您的邮箱和密码</li><li>现在可以在 <code class="bg-blue-100 px-1 rounded">{your-store-url}/admin</code> 登录了</li></ol>',
+        },
+        complete: {
+          emoji: '🎉',
+          heading: '您的商店已上线！',
+          desc: '恭喜！您的 OpenShop 商店已设置完成，可以开始销售了。',
+          quickLinks: '快捷链接',
+          storefront: '商店首页',
+          adminLink: '管理后台',
+          footer: '从管理后台添加您的第一个商品，然后开始分享商店链接给客户吧！',
+        },
+      },
+    };
+
     let currentStep = 1;
     const totalSteps = 8;
     const state = {
@@ -176,90 +337,69 @@ $$ language plpgsql security definer;`;
       return `<div class="bg-blue-50 border border-blue-100 rounded-lg p-4 text-sm text-blue-800 mb-4">${text}</div>`;
     }
 
-    const steps = {
-      1: () => `
-        <div class="text-center py-4">
-          <div class="text-5xl mb-4">🛍️</div>
-          <h2 class="text-2xl font-bold text-gray-900 mb-3">Welcome to OpenShop</h2>
-          <p class="text-gray-600 mb-6">Launch your own online store in about 15 minutes — no coding required.</p>
-        </div>
-        ${infoBox(`<strong>What you'll need:</strong><ul class="mt-2 space-y-1 list-disc list-inside">
-          <li>A <strong>Supabase</strong> account (free) — database &amp; auth</li>
-          <li>A <strong>Stripe</strong> account (free) — payments</li>
-          <li>A <strong>Resend</strong> account (free) — email notifications</li>
-          <li>A <strong>Vercel</strong> account (free) — hosting</li>
-        </ul>`)}
-        <p class="text-sm text-gray-500 text-center">Each step will guide you through creating and configuring each service. Let's get started!</p>`,
+    function L() { return i18n[wizardLang]; }
 
-      2: () => `
-        <h2 class="text-xl font-bold text-gray-900 mb-1">Supabase Setup</h2>
-        <p class="text-sm text-gray-500 mb-4">Supabase is your database and authentication provider.</p>
-        ${infoBox(`<ol class="list-decimal list-inside space-y-2">
-          <li>Go to <a href="https://supabase.com/dashboard/projects" target="_blank" class="underline font-medium">supabase.com/dashboard</a> and create a free account</li>
-          <li>Click <strong>New Project</strong>, pick a name and password, then wait for it to finish</li>
-          <li>Go to <a href="https://supabase.com/dashboard/project/_/settings/api" target="_blank" class="underline font-medium">Project Settings → API</a> (or click Settings ⚙️ in the sidebar → API)</li>
-          <li>You'll see <strong>Project URL</strong> at the top — copy it</li>
-          <li>Under <strong>Project API keys</strong>, copy <code class="bg-blue-100 px-1 rounded">anon public</code> and <code class="bg-blue-100 px-1 rounded">service_role</code></li>
-        </ol>`)}
-        ${field('Project URL', 'supabase-url', 'https://xxxxxxxxxxxx.supabase.co', state.supabaseUrl)}
-        ${field('Anon Key', 'supabase-anon-key', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...', state.supabaseAnonKey)}
-        ${field('Service Role Key', 'supabase-service-role-key', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...', state.supabaseServiceRoleKey)}
+    const steps = {
+      1: () => { const l = L().welcome; return `
+        <div class="text-center py-4">
+          <div class="text-5xl mb-4">${l.emoji}</div>
+          <h2 class="text-2xl font-bold text-gray-900 mb-3">${l.heading}</h2>
+          <p class="text-gray-600 mb-6">${l.desc}</p>
+        </div>
+        ${infoBox(l.needs)}
+        <p class="text-sm text-gray-500 text-center">${l.footer}</p>`; },
+
+      2: () => { const l = L().supabase; return `
+        <h2 class="text-xl font-bold text-gray-900 mb-1">${l.heading}</h2>
+        <p class="text-sm text-gray-500 mb-4">${l.desc}</p>
+        ${infoBox(l.steps)}
+        ${field(l.url, 'supabase-url', 'https://xxxxxxxxxxxx.supabase.co', state.supabaseUrl)}
+        ${field(l.anonKey, 'supabase-anon-key', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...', state.supabaseAnonKey)}
+        ${field(l.serviceKey, 'supabase-service-role-key', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...', state.supabaseServiceRoleKey)}
         <div class="flex gap-2 flex-wrap">
-          <button onclick="validateSupabase()" class="px-4 py-2 bg-gray-800 text-white text-sm rounded-lg hover:bg-gray-900 transition-colors">Validate Connection</button>
+          <button onclick="validateSupabase()" class="px-4 py-2 bg-gray-800 text-white text-sm rounded-lg hover:bg-gray-900 transition-colors">${l.validate}</button>
           <span id="validate-status" class="self-center text-sm"></span>
         </div>
         <div id="sql-section" class="mt-4 hidden">
           <div class="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-800 mb-3">
-            Connection successful! Now run the database schema:
+            ${l.success}
           </div>
           <ol class="text-sm text-gray-600 space-y-1 mb-3 list-decimal list-inside">
-            <li>Click <strong>Copy SQL</strong> below</li>
-            <li>Open the <a id="sql-editor-link" href="#" target="_blank" class="text-emerald-600 underline">Supabase SQL Editor</a></li>
-            <li>Paste the SQL and click <strong>Run</strong></li>
+            ${l.sqlSteps.map(s => `<li>${s}</li>`).join('')}
           </ol>
-          <button onclick="copySQL()" class="px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 transition-colors">Copy SQL</button>
+          <button onclick="copySQL()" class="px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 transition-colors">${l.copySQL}</button>
           <span id="copy-status" class="ml-2 text-sm text-gray-500"></span>
-        </div>`,
+        </div>`; },
 
-      3: () => `
-        <h2 class="text-xl font-bold text-gray-900 mb-1">Resend Setup <span class="text-sm font-normal text-gray-400">(Optional)</span></h2>
-        <p class="text-sm text-gray-500 mb-4">Resend sends order confirmation emails to customers and new-order alerts to you. You can skip this and add it later.</p>
-        ${infoBox(`<ol class="list-decimal list-inside space-y-2">
-          <li>Go to <a href="https://resend.com/signup" target="_blank" class="underline font-medium">resend.com/signup</a> and create a free account</li>
-          <li>Go to <a href="https://resend.com/api-keys" target="_blank" class="underline font-medium">API Keys</a> and click <strong>Create API Key</strong></li>
-          <li>Copy the key (starts with <code class="bg-blue-100 px-1 rounded">re_</code>) — you only see it once!</li>
-        </ol>`)}
-        ${field('API Key', 'resend-api-key', 're_xxxxxxxxxxxxxxxxxxxx', state.resendApiKey)}
-        ${field('From Email', 'resend-from-email', 'onboarding@resend.dev', state.resendFromEmail)}
-        ${field('Admin Email (where you receive order alerts)', 'admin-email', 'you@example.com', state.adminEmail)}
-        <button onclick="skipResend()" class="text-sm text-gray-500 hover:text-gray-700 underline">Skip — I'll add email later</button>`,
+      3: () => { const l = L().resend; return `
+        <h2 class="text-xl font-bold text-gray-900 mb-1">${l.heading} <span class="text-sm font-normal text-gray-400">${l.optional}</span></h2>
+        <p class="text-sm text-gray-500 mb-4">${l.desc}</p>
+        ${infoBox(l.steps)}
+        ${field(l.apiKey, 'resend-api-key', 're_xxxxxxxxxxxxxxxxxxxx', state.resendApiKey)}
+        ${field(l.fromEmail, 'resend-from-email', 'onboarding@resend.dev', state.resendFromEmail)}
+        ${field(l.adminEmail, 'admin-email', 'you@example.com', state.adminEmail)}
+        <button onclick="skipResend()" class="text-sm text-gray-500 hover:text-gray-700 underline">${l.skip}</button>`; },
 
-      4: () => `
-        <h2 class="text-xl font-bold text-gray-900 mb-1">Stripe Setup</h2>
-        <p class="text-sm text-gray-500 mb-4">Stripe handles payments including Apple Pay and Google Pay.</p>
-        ${infoBox(`<ol class="list-decimal list-inside space-y-2">
-          <li>Go to <a href="https://dashboard.stripe.com/register" target="_blank" class="underline font-medium">stripe.com</a> and create a free account</li>
-          <li>Go to <a href="https://dashboard.stripe.com/test/apikeys" target="_blank" class="underline font-medium">Developers → API keys</a></li>
-          <li>Copy the <strong>Publishable key</strong> (starts with <code class="bg-blue-100 px-1 rounded">pk_</code>)</li>
-          <li>Click <strong>Reveal test key</strong> to see the <strong>Secret key</strong> (starts with <code class="bg-blue-100 px-1 rounded">sk_</code>)</li>
-          <li>💡 Use test keys first, switch to live keys when you're ready to accept real payments</li>
-        </ol>`)}
-        ${field('Publishable Key', 'stripe-publishable-key', 'pk_test_...', state.stripePublishableKey)}
-        ${field('Secret Key', 'stripe-secret-key', 'sk_test_...', state.stripeSecretKey)}`,
+      4: () => { const l = L().stripe; return `
+        <h2 class="text-xl font-bold text-gray-900 mb-1">${l.heading}</h2>
+        <p class="text-sm text-gray-500 mb-4">${l.desc}</p>
+        ${infoBox(l.steps)}
+        ${field(l.publishableKey, 'stripe-publishable-key', 'pk_test_...', state.stripePublishableKey)}
+        ${field(l.secretKey, 'stripe-secret-key', 'sk_test_...', state.stripeSecretKey)}`; },
 
-      5: () => `
-        <h2 class="text-xl font-bold text-gray-900 mb-1">Customize Your Store</h2>
-        <p class="text-sm text-gray-500 mb-4">Set your store name, language, and theme color.</p>
-        ${field('Store Name', 'store-name', 'My Awesome Shop', state.storeName)}
+      5: () => { const l = L().customize; return `
+        <h2 class="text-xl font-bold text-gray-900 mb-1">${l.heading}</h2>
+        <p class="text-sm text-gray-500 mb-4">${l.desc}</p>
+        ${field(l.storeName, 'store-name', wizardLang === 'zh' ? '我的商店' : 'My Awesome Shop', state.storeName)}
         <div class="mb-4">
-          ${label('Language')}
+          ${label(l.language)}
           <select id="store-locale" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
             <option value="en" ${state.locale === 'en' ? 'selected' : ''}>English</option>
             <option value="zh" ${state.locale === 'zh' ? 'selected' : ''}>Chinese (中文)</option>
           </select>
         </div>
         <div class="mb-4">
-          ${label('Theme Color')}
+          ${label(l.themeColor)}
           <div class="flex gap-3 flex-wrap mt-1" id="color-palette">
             ${COLORS.map(c => `
               <button onclick="selectColor('${c.name}')" id="color-${c.name}"
@@ -267,8 +407,8 @@ $$ language plpgsql security definer;`;
                 title="${c.name}"></button>
             `).join('')}
           </div>
-          <p class="text-sm text-gray-500 mt-2">Selected: <span id="color-label" class="font-medium capitalize">${state.themeColor}</span></p>
-        </div>`,
+          <p class="text-sm text-gray-500 mt-2">${l.selected}: <span id="color-label" class="font-medium capitalize">${state.themeColor}</span></p>
+        </div>`; },
 
       6: () => {
         const params = new URLSearchParams({
@@ -299,65 +439,47 @@ $$ language plpgsql security definer;`;
         params.set('envValue[NEXT_PUBLIC_LOCALE]', state.locale);
         params.set('envValue[NEXT_PUBLIC_THEME_COLOR]', state.themeColor);
         const deployUrl = `https://vercel.com/new/clone?${params.toString()}`;
+        const l = L().deploy;
         return `
-        <h2 class="text-xl font-bold text-gray-900 mb-1">Deploy to Vercel</h2>
-        <p class="text-sm text-gray-500 mb-4">Deploy your store with one click. All your settings will be pre-filled.</p>
-        ${infoBox(`<strong>What happens next:</strong><ol class="list-decimal list-inside space-y-1 mt-2">
-          <li>Click the button below — it opens Vercel with all your settings pre-filled</li>
-          <li>Sign in to Vercel (free) with your GitHub account</li>
-          <li>Vercel will fork the OpenShop code into your GitHub and deploy it</li>
-          <li>Wait ~60 seconds — your store URL will appear!</li>
-        </ol>`)}
+        <h2 class="text-xl font-bold text-gray-900 mb-1">${l.heading}</h2>
+        <p class="text-sm text-gray-500 mb-4">${l.desc}</p>
+        ${infoBox(l.info)}
         <div class="text-center py-4">
           <a href="${deployUrl}" target="_blank"
             class="inline-block px-8 py-4 bg-black text-white text-lg font-semibold rounded-xl hover:bg-gray-800 transition-colors shadow-lg">
-            ▲ Deploy to Vercel
+            ${l.button}
           </a>
-          <p class="text-sm text-gray-500 mt-3">Opens Vercel with your config pre-filled</p>
+          <p class="text-sm text-gray-500 mt-3">${l.buttonDesc}</p>
         </div>
-        <p class="text-sm text-gray-600 mt-2">After deploying, note your store URL (e.g. <code class="bg-gray-100 px-1 rounded">https://myshop.vercel.app</code>) — you'll need it in the next step.</p>`;
+        <p class="text-sm text-gray-600 mt-2">${l.afterDeploy}</p>`;
       },
 
-      7: () => `
-        <h2 class="text-xl font-bold text-gray-900 mb-1">Post-Deploy Setup</h2>
-        <p class="text-sm text-gray-500 mb-4">Two final steps to complete your store setup.</p>
+      7: () => { const l = L().postDeploy; return `
+        <h2 class="text-xl font-bold text-gray-900 mb-1">${l.heading}</h2>
+        <p class="text-sm text-gray-500 mb-4">${l.desc}</p>
         <div class="mb-5">
-          <h3 class="font-semibold text-gray-800 mb-2">1. Set up Stripe Webhook</h3>
-          ${infoBox(`<ol class="list-decimal list-inside space-y-2">
-            <li>Open <a href="https://dashboard.stripe.com/test/webhooks/create" target="_blank" class="underline font-medium">Stripe → Webhooks → Add endpoint</a></li>
-            <li>In <strong>Endpoint URL</strong>, paste: <code class="bg-blue-100 px-1 rounded">{your-store-url}/api/webhooks/stripe</code></li>
-            <li>Click <strong>Select events</strong> → search <code>checkout.session.completed</code> → check it → <strong>Add events</strong></li>
-            <li>Click <strong>Add endpoint</strong></li>
-            <li>On the endpoint page, click <strong>Reveal</strong> under <strong>Signing secret</strong> — copy it (starts with <code class="bg-blue-100 px-1 rounded">whsec_</code>)</li>
-            <li>Go to <a href="https://vercel.com/dashboard" target="_blank" class="underline font-medium">Vercel Dashboard</a> → your project → <strong>Settings → Environment Variables</strong></li>
-            <li>Add variable: name = <code class="bg-blue-100 px-1 rounded">STRIPE_WEBHOOK_SECRET</code>, value = the signing secret you copied</li>
-            <li>Go to <strong>Deployments</strong> tab → click <strong>⋮</strong> on the latest → <strong>Redeploy</strong></li>
-          </ol>`)}
+          <h3 class="font-semibold text-gray-800 mb-2">${l.webhook}</h3>
+          ${infoBox(l.webhookSteps)}
         </div>
         <div>
-          <h3 class="font-semibold text-gray-800 mb-2">2. Create Admin Account</h3>
-          ${infoBox(`<ol class="list-decimal list-inside space-y-2">
-            <li>Go to <a href="https://supabase.com/dashboard/project/_/auth/users" target="_blank" class="underline font-medium">Supabase → Authentication → Users</a></li>
-            <li>Click <strong>Add user → Create new user</strong></li>
-            <li>Enter your email and a password</li>
-            <li>You can now log in at <code class="bg-blue-100 px-1 rounded">{your-store-url}/admin</code></li>
-          </ol>`)}
-        </div>`,
+          <h3 class="font-semibold text-gray-800 mb-2">${l.admin}</h3>
+          ${infoBox(l.adminSteps)}
+        </div>`; },
 
-      8: () => `
+      8: () => { const l = L().complete; return `
         <div class="text-center py-6">
-          <div class="text-6xl mb-4">🎉</div>
-          <h2 class="text-2xl font-bold text-gray-900 mb-3">Your Store is Live!</h2>
-          <p class="text-gray-600 mb-6">Congratulations! Your OpenShop store is set up and ready to sell.</p>
+          <div class="text-6xl mb-4">${l.emoji}</div>
+          <h2 class="text-2xl font-bold text-gray-900 mb-3">${l.heading}</h2>
+          <p class="text-gray-600 mb-6">${l.desc}</p>
           <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-left mb-6">
-            <p class="text-sm font-semibold text-emerald-800 mb-2">Quick Links</p>
+            <p class="text-sm font-semibold text-emerald-800 mb-2">${l.quickLinks}</p>
             <ul class="text-sm text-emerald-700 space-y-1">
-              <li>🛍️ Storefront: <span class="font-mono">{your-store-url}</span></li>
-              <li>⚙️ Admin: <span class="font-mono">{your-store-url}/admin</span></li>
+              <li>🛍️ ${l.storefront}: <span class="font-mono">{your-store-url}</span></li>
+              <li>⚙️ ${l.adminLink}: <span class="font-mono">{your-store-url}/admin</span></li>
             </ul>
           </div>
-          <p class="text-sm text-gray-500">Add your first product from the admin dashboard and start sharing your store link with customers!</p>
-        </div>`,
+          <p class="text-sm text-gray-500">${l.footer}</p>
+        </div>`; },
     };
 
     function saveCurrentStep() {
@@ -379,12 +501,21 @@ $$ language plpgsql security definer;`;
     }
 
     function render() {
+      const l = L();
       document.getElementById('step-container').innerHTML = steps[currentStep]();
-      document.getElementById('progress-text').textContent = `Step ${currentStep} of ${totalSteps}`;
+      document.getElementById('progress-text').textContent = l.stepOf(currentStep, totalSteps);
       document.getElementById('progress-bar').style.width = `${(currentStep / totalSteps) * 100}%`;
       document.getElementById('btn-back').classList.toggle('hidden', currentStep === 1);
-      const btnNext = document.getElementById('btn-next');
-      btnNext.textContent = currentStep === totalSteps ? 'Done' : (currentStep === 6 ? 'Next' : 'Next');
+      document.getElementById('btn-back').textContent = l.back;
+      document.getElementById('btn-next').textContent = currentStep === totalSteps ? l.done : l.next;
+      document.getElementById('lang-toggle').textContent = l.langToggle;
+      document.querySelector('h1').textContent = l.title;
+    }
+
+    function toggleLang() {
+      saveCurrentStep();
+      wizardLang = wizardLang === 'en' ? 'zh' : 'en';
+      render();
     }
 
     function goNext() {
