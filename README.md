@@ -1,36 +1,75 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# OpenShop
 
-## Getting Started
+An open-source one-click store builder. Launch a mobile-first online store in minutes — no coding required.
 
-First, run the development server:
+## Features
+
+- **Mobile-first storefront** — Product listing, detail pages, cart, and checkout optimized for phones
+- **Stripe payments** — Apple Pay, Google Pay, and card payments via Stripe Checkout
+- **Admin dashboard** — Manage products, orders, and store settings from your phone
+- **Setup wizard** — Guided setup for non-technical shop owners, deploy with one click
+- **Customizable** — Choose your store name, language, logo, and theme color
+- **Multi-language** — Config-driven single language (English, Chinese, or add your own)
+
+## Tech Stack
+
+- [Next.js 16](https://nextjs.org/) — App Router, Server Components
+- [Tailwind CSS v4](https://tailwindcss.com/)
+- [Supabase](https://supabase.com/) — Database, Auth, Storage
+- [Stripe](https://stripe.com/) — Payments
+- [Resend](https://resend.com/) — Email notifications
+- [Vercel](https://vercel.com/) — Hosting
+
+## Quick Start
+
+### Option 1: Setup Wizard (Recommended)
+
+Open `wizard/index.html` in your browser and follow the step-by-step guide.
+
+### Option 2: Manual Setup
+
+1. Create a [Supabase](https://supabase.com/) project
+2. Run the SQL in `supabase/migrations/001_initial_schema.sql` in the Supabase SQL editor
+3. Create a [Stripe](https://stripe.com/) account
+4. Create a [Resend](https://resend.com/) account
+5. Copy `.env.local.example` to `.env.local` and fill in your keys
+6. Run locally:
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+7. Deploy to Vercel:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npx vercel
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Environment Variables
 
-## Learn More
+| Variable | Description |
+|----------|-------------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anonymous key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key |
+| `STRIPE_SECRET_KEY` | Stripe secret key |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe publishable key |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret |
+| `RESEND_API_KEY` | Resend API key |
+| `RESEND_FROM_EMAIL` | Sender email address |
+| `ADMIN_EMAIL` | Admin notification email |
+| `NEXT_PUBLIC_STORE_NAME` | Your store's name |
+| `NEXT_PUBLIC_LOCALE` | Language (`en` or `zh`) |
+| `NEXT_PUBLIC_THEME_COLOR` | Theme color preset |
 
-To learn more about Next.js, take a look at the following resources:
+## Adding a Language
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Copy `src/messages/en.json` to `src/messages/{locale}.json`
+2. Translate the values
+3. Add the import to `src/lib/i18n.ts`
+4. Set `NEXT_PUBLIC_LOCALE` to your new locale
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## License
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT
