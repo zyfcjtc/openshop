@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenShop Setup Wizard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <div class="max-w-2xl mx-auto px-4 py-8">
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <!-- Header -->
+      <div class="bg-emerald-600 px-6 py-5">
+        <h1 class="text-white text-xl font-bold">OpenShop Setup Wizard</h1>
+        <p id="progress-text" class="text-emerald-100 text-sm mt-1">Step 1 of 8</p>
+        <div class="mt-3 bg-emerald-500 rounded-full h-2">
+          <div id="progress-bar" class="bg-white rounded-full h-2 transition-all duration-300" style="width: 12.5%"></div>
+        </div>
+      </div>
+
+      <!-- Steps -->
+      <div id="step-container" class="px-6 py-6"></div>
+
+      <!-- Navigation -->
+      <div class="px-6 pb-6 flex justify-between items-center border-t border-gray-100 pt-4">
+        <button id="btn-back" onclick="goBack()" class="px-4 py-2 text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors hidden">Back</button>
+        <div></div>
+        <button id="btn-next" onclick="goNext()" class="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const MIGRATION_SQL = `-- Products table
+create table products (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  description text not null default '',
+  price decimal(10, 2) not null,
+  image_url text,
+  stock integer not null default 0,
+  category text not null,
+  active boolean not null default true,
+  sort_order integer not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create or replace function update_updated_at()
+returns trigger as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$ language plpgsql;
+
+create trigger products_updated_at
+  before update on products
+  for each row execute function update_updated_at();
+
+create table orders (
+  id uuid primary key default gen_random_uuid(),
+  customer_name text not null,
+  customer_email text not null,
+  customer_phone text not null,
+  shipping_address text,
+  status text not null default 'pending' check (status in ('pending', 'confirmed', 'completed', 'cancelled')),
+  payment_status text not null default 'unpaid' check (payment_status in ('unpaid', 'paid', 'refunded')),
+  stripe_session_id text,
+  subtotal decimal(10, 2) not null,
+  shipping_fee decimal(10, 2) not null default 0,
+  total decimal(10, 2) not null,
+  notes text,
+  admin_notes text,
+  created_at timestamptz not null default now()
+);
+
+create table order_items (
+  id uuid primary key default gen_random_uuid(),
+  order_id uuid not null references orders(id) on delete cascade,
+  product_id uuid not null references products(id),
+  quantity integer not null check (quantity > 0),
+  unit_price decimal(10, 2) not null
+);
+
+create table store_settings (
+  id integer primary key default 1 check (id = 1),
+  logo_url text,
+  theme_color text not null default 'emerald',
+  updated_at timestamptz not null default now()
+);
+
+insert into store_settings (id) values (1);
+
+create trigger store_settings_updated_at
+  before update on store_settings
+  for each row execute function update_updated_at();
+
+create index idx_products_active_category on products(active, category);
+create index idx_orders_status on orders(status);
+create index idx_orders_payment_status on orders(payment_status);
+create index idx_order_items_order_id on order_items(order_id);
+
+alter table products enable row level security;
+alter table orders enable row level security;
+alter table order_items enable row level security;
+alter table store_settings enable row level security;
+
+create policy "Public can read active products" on products for select using (active = true);
+create policy "Admin can manage products" on products for all to authenticated using (true) with check (true);
+create policy "Public can place orders" on orders for insert with check (true);
+create policy "Admin can read orders" on orders for select to authenticated using (true);
+create policy "Admin can update orders" on orders for update to authenticated using (true) with check (true);
+create policy "Public can insert order items" on order_items for insert with check (true);
+create policy "Admin can read order items" on order_items for select to authenticated using (true);
+create policy "Public can read store settings" on store_settings for select using (true);
+create policy "Admin can update store settings" on store_settings for update to authenticated using (true) with check (true);
+
+insert into storage.buckets (id, name, public) values ('product-images', 'product-images', true) on conflict (id) do nothing;
+insert into storage.buckets (id, name, public) values ('store-assets', 'store-assets', true) on conflict (id) do nothing;
+
+create policy "Public can read product images" on storage.objects for select using (bucket_id = 'product-images');
+create policy "Admin can upload product images" on storage.objects for insert to authenticated with check (bucket_id = 'product-images');
+create policy "Admin can update product images" on storage.objects for update to authenticated using (bucket_id = 'product-images');
+create policy "Admin can delete product images" on storage.objects for delete to authenticated using (bucket_id = 'product-images');
+create policy "Public can read store assets" on storage.objects for select using (bucket_id = 'store-assets');
+create policy "Admin can upload store assets" on storage.objects for insert to authenticated with check (bucket_id = 'store-assets');
+create policy "Admin can update store assets" on storage.objects for update to authenticated using (bucket_id = 'store-assets');
+create policy "Admin can delete store assets" on storage.objects for delete to authenticated using (bucket_id = 'store-assets');
+
+create or replace function decrement_stock(p_id uuid, amount integer)
+returns void as $$
+begin
+  update products set stock = stock - amount where id = p_id;
+end;
+$$ language plpgsql security definer;
+
+create or replace function increment_stock(p_id uuid, amount integer)
+returns void as $$
+begin
+  update products set stock = stock + amount where id = p_id;
+end;
+$$ language plpgsql security definer;`;
+
+    let currentStep = 1;
+    const totalSteps = 8;
+    const state = {
+      supabaseUrl: '', supabaseAnonKey: '', supabaseServiceRoleKey: '',
+      resendApiKey: '', resendFromEmail: 'onboarding@resend.dev', adminEmail: '',
+      stripePublishableKey: '', stripeSecretKey: '',
+      storeName: '', locale: 'en', themeColor: 'emerald',
+    };
+
+    const COLORS = [
+      { name: 'emerald', bg: 'bg-emerald-500' },
+      { name: 'blue', bg: 'bg-blue-500' },
+      { name: 'rose', bg: 'bg-rose-500' },
+      { name: 'amber', bg: 'bg-amber-500' },
+      { name: 'violet', bg: 'bg-violet-500' },
+      { name: 'slate', bg: 'bg-slate-500' },
+      { name: 'teal', bg: 'bg-teal-500' },
+      { name: 'orange', bg: 'bg-orange-500' },
+    ];
+
+    function label(text) {
+      return `<label class="block text-sm font-medium text-gray-700 mb-1">${text}</label>`;
+    }
+    function input(id, placeholder, value = '', type = 'text') {
+      return `<input id="${id}" type="${type}" placeholder="${placeholder}" value="${value}"
+        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />`;
+    }
+    function field(labelText, id, placeholder, value = '', type = 'text') {
+      return `<div class="mb-4">${label(labelText)}${input(id, placeholder, value, type)}</div>`;
+    }
+    function infoBox(text) {
+      return `<div class="bg-blue-50 border border-blue-100 rounded-lg p-4 text-sm text-blue-800 mb-4">${text}</div>`;
+    }
+
+    const steps = {
+      1: () => `
+        <div class="text-center py-4">
+          <div class="text-5xl mb-4">🛍️</div>
+          <h2 class="text-2xl font-bold text-gray-900 mb-3">Welcome to OpenShop</h2>
+          <p class="text-gray-600 mb-6">Launch your own online store in about 15 minutes — no coding required.</p>
+        </div>
+        ${infoBox(`<strong>What you'll need:</strong><ul class="mt-2 space-y-1 list-disc list-inside">
+          <li>A <strong>Supabase</strong> account (free) — database &amp; auth</li>
+          <li>A <strong>Stripe</strong> account (free) — payments</li>
+          <li>A <strong>Resend</strong> account (free) — email notifications</li>
+          <li>A <strong>Vercel</strong> account (free) — hosting</li>
+        </ul>`)}
+        <p class="text-sm text-gray-500 text-center">Each step will guide you through creating and configuring each service. Let's get started!</p>`,
+
+      2: () => `
+        <h2 class="text-xl font-bold text-gray-900 mb-1">Supabase Setup</h2>
+        <p class="text-sm text-gray-500 mb-4">Supabase is your database and authentication provider.</p>
+        ${infoBox(`<ol class="list-decimal list-inside space-y-2">
+          <li>Go to <a href="https://supabase.com/dashboard/projects" target="_blank" class="underline font-medium">supabase.com/dashboard</a> and create a free account</li>
+          <li>Click <strong>New Project</strong>, pick a name and password, then wait for it to finish</li>
+          <li>Go to <a href="https://supabase.com/dashboard/project/_/settings/api" target="_blank" class="underline font-medium">Project Settings → API</a> (or click Settings ⚙️ in the sidebar → API)</li>
+          <li>You'll see <strong>Project URL</strong> at the top — copy it</li>
+          <li>Under <strong>Project API keys</strong>, copy <code class="bg-blue-100 px-1 rounded">anon public</code> and <code class="bg-blue-100 px-1 rounded">service_role</code></li>
+        </ol>`)}
+        ${field('Project URL', 'supabase-url', 'https://xxxxxxxxxxxx.supabase.co', state.supabaseUrl)}
+        ${field('Anon Key', 'supabase-anon-key', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...', state.supabaseAnonKey)}
+        ${field('Service Role Key', 'supabase-service-role-key', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...', state.supabaseServiceRoleKey)}
+        <div class="flex gap-2 flex-wrap">
+          <button onclick="validateSupabase()" class="px-4 py-2 bg-gray-800 text-white text-sm rounded-lg hover:bg-gray-900 transition-colors">Validate Connection</button>
+          <span id="validate-status" class="self-center text-sm"></span>
+        </div>
+        <div id="sql-section" class="mt-4 hidden">
+          <div class="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-800 mb-3">
+            Connection successful! Now run the database schema:
+          </div>
+          <ol class="text-sm text-gray-600 space-y-1 mb-3 list-decimal list-inside">
+            <li>Click <strong>Copy SQL</strong> below</li>
+            <li>Open the <a id="sql-editor-link" href="#" target="_blank" class="text-emerald-600 underline">Supabase SQL Editor</a></li>
+            <li>Paste the SQL and click <strong>Run</strong></li>
+          </ol>
+          <button onclick="copySQL()" class="px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 transition-colors">Copy SQL</button>
+          <span id="copy-status" class="ml-2 text-sm text-gray-500"></span>
+        </div>`,
+
+      3: () => `
+        <h2 class="text-xl font-bold text-gray-900 mb-1">Resend Setup <span class="text-sm font-normal text-gray-400">(Optional)</span></h2>
+        <p class="text-sm text-gray-500 mb-4">Resend sends order confirmation emails to customers and new-order alerts to you. You can skip this and add it later.</p>
+        ${infoBox(`<ol class="list-decimal list-inside space-y-2">
+          <li>Go to <a href="https://resend.com/signup" target="_blank" class="underline font-medium">resend.com/signup</a> and create a free account</li>
+          <li>Go to <a href="https://resend.com/api-keys" target="_blank" class="underline font-medium">API Keys</a> and click <strong>Create API Key</strong></li>
+          <li>Copy the key (starts with <code class="bg-blue-100 px-1 rounded">re_</code>) — you only see it once!</li>
+        </ol>`)}
+        ${field('API Key', 'resend-api-key', 're_xxxxxxxxxxxxxxxxxxxx', state.resendApiKey)}
+        ${field('From Email', 'resend-from-email', 'onboarding@resend.dev', state.resendFromEmail)}
+        ${field('Admin Email (where you receive order alerts)', 'admin-email', 'you@example.com', state.adminEmail)}
+        <button onclick="skipResend()" class="text-sm text-gray-500 hover:text-gray-700 underline">Skip — I'll add email later</button>`,
+
+      4: () => `
+        <h2 class="text-xl font-bold text-gray-900 mb-1">Stripe Setup</h2>
+        <p class="text-sm text-gray-500 mb-4">Stripe handles payments including Apple Pay and Google Pay.</p>
+        ${infoBox(`<ol class="list-decimal list-inside space-y-2">
+          <li>Go to <a href="https://dashboard.stripe.com/register" target="_blank" class="underline font-medium">stripe.com</a> and create a free account</li>
+          <li>Go to <a href="https://dashboard.stripe.com/test/apikeys" target="_blank" class="underline font-medium">Developers → API keys</a></li>
+          <li>Copy the <strong>Publishable key</strong> (starts with <code class="bg-blue-100 px-1 rounded">pk_</code>)</li>
+          <li>Click <strong>Reveal test key</strong> to see the <strong>Secret key</strong> (starts with <code class="bg-blue-100 px-1 rounded">sk_</code>)</li>
+          <li>💡 Use test keys first, switch to live keys when you're ready to accept real payments</li>
+        </ol>`)}
+        ${field('Publishable Key', 'stripe-publishable-key', 'pk_test_...', state.stripePublishableKey)}
+        ${field('Secret Key', 'stripe-secret-key', 'sk_test_...', state.stripeSecretKey)}`,
+
+      5: () => `
+        <h2 class="text-xl font-bold text-gray-900 mb-1">Customize Your Store</h2>
+        <p class="text-sm text-gray-500 mb-4">Set your store name, language, and theme color.</p>
+        ${field('Store Name', 'store-name', 'My Awesome Shop', state.storeName)}
+        <div class="mb-4">
+          ${label('Language')}
+          <select id="store-locale" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            <option value="en" ${state.locale === 'en' ? 'selected' : ''}>English</option>
+            <option value="zh" ${state.locale === 'zh' ? 'selected' : ''}>Chinese (中文)</option>
+          </select>
+        </div>
+        <div class="mb-4">
+          ${label('Theme Color')}
+          <div class="flex gap-3 flex-wrap mt-1" id="color-palette">
+            ${COLORS.map(c => `
+              <button onclick="selectColor('${c.name}')" id="color-${c.name}"
+                class="w-10 h-10 rounded-full ${c.bg} transition-all ${state.themeColor === c.name ? 'ring-4 ring-offset-2 ring-gray-400 scale-110' : 'hover:scale-105'}"
+                title="${c.name}"></button>
+            `).join('')}
+          </div>
+          <p class="text-sm text-gray-500 mt-2">Selected: <span id="color-label" class="font-medium capitalize">${state.themeColor}</span></p>
+        </div>`,
+
+      6: () => {
+        const params = new URLSearchParams({
+          'repository-url': 'YOUR_GITHUB_REPO_URL',
+          'env': 'NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,SUPABASE_SERVICE_ROLE_KEY,STRIPE_SECRET_KEY,NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,RESEND_API_KEY,RESEND_FROM_EMAIL,ADMIN_EMAIL,NEXT_PUBLIC_STORE_NAME,NEXT_PUBLIC_LOCALE,NEXT_PUBLIC_THEME_COLOR',
+          'envDescription[NEXT_PUBLIC_SUPABASE_URL]': 'Supabase project URL',
+          'envDescription[NEXT_PUBLIC_SUPABASE_ANON_KEY]': 'Supabase anon key',
+          'envDescription[SUPABASE_SERVICE_ROLE_KEY]': 'Supabase service role key',
+          'envDescription[STRIPE_SECRET_KEY]': 'Stripe secret key',
+          'envDescription[NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY]': 'Stripe publishable key',
+          'envDescription[RESEND_API_KEY]': 'Resend API key',
+          'envDescription[RESEND_FROM_EMAIL]': 'Sender email address',
+          'envDescription[ADMIN_EMAIL]': 'Admin notification email',
+          'envDescription[NEXT_PUBLIC_STORE_NAME]': 'Your store name',
+          'envDescription[NEXT_PUBLIC_LOCALE]': 'Language: en or zh',
+          'envDescription[NEXT_PUBLIC_THEME_COLOR]': 'Theme color preset',
+        });
+        // Pre-fill values
+        if (state.supabaseUrl) params.set('envValue[NEXT_PUBLIC_SUPABASE_URL]', state.supabaseUrl);
+        if (state.supabaseAnonKey) params.set('envValue[NEXT_PUBLIC_SUPABASE_ANON_KEY]', state.supabaseAnonKey);
+        if (state.supabaseServiceRoleKey) params.set('envValue[SUPABASE_SERVICE_ROLE_KEY]', state.supabaseServiceRoleKey);
+        if (state.stripeSecretKey) params.set('envValue[STRIPE_SECRET_KEY]', state.stripeSecretKey);
+        if (state.stripePublishableKey) params.set('envValue[NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY]', state.stripePublishableKey);
+        if (state.resendApiKey) params.set('envValue[RESEND_API_KEY]', state.resendApiKey);
+        if (state.resendFromEmail) params.set('envValue[RESEND_FROM_EMAIL]', state.resendFromEmail);
+        if (state.adminEmail) params.set('envValue[ADMIN_EMAIL]', state.adminEmail);
+        if (state.storeName) params.set('envValue[NEXT_PUBLIC_STORE_NAME]', state.storeName);
+        params.set('envValue[NEXT_PUBLIC_LOCALE]', state.locale);
+        params.set('envValue[NEXT_PUBLIC_THEME_COLOR]', state.themeColor);
+        const deployUrl = `https://vercel.com/new/clone?${params.toString()}`;
+        return `
+        <h2 class="text-xl font-bold text-gray-900 mb-1">Deploy to Vercel</h2>
+        <p class="text-sm text-gray-500 mb-4">Deploy your store with one click. All your settings will be pre-filled.</p>
+        ${infoBox(`<strong>Before deploying:</strong> Make sure your OpenShop code is pushed to a GitHub repository. Replace <code class="bg-blue-100 px-1 rounded">YOUR_GITHUB_REPO_URL</code> in the deploy link with your actual repo URL (e.g. <code class="bg-blue-100 px-1 rounded">https://github.com/yourname/openshop</code>).`)}
+        <div class="text-center py-4">
+          <a href="${deployUrl}" target="_blank"
+            class="inline-block px-8 py-4 bg-black text-white text-lg font-semibold rounded-xl hover:bg-gray-800 transition-colors shadow-lg">
+            ▲ Deploy to Vercel
+          </a>
+          <p class="text-sm text-gray-500 mt-3">Opens Vercel with your config pre-filled</p>
+        </div>
+        <p class="text-sm text-gray-600 mt-2">After deploying, note your store URL (e.g. <code class="bg-gray-100 px-1 rounded">https://myshop.vercel.app</code>) — you'll need it in the next step.</p>`;
+      },
+
+      7: () => `
+        <h2 class="text-xl font-bold text-gray-900 mb-1">Post-Deploy Setup</h2>
+        <p class="text-sm text-gray-500 mb-4">Two final steps to complete your store setup.</p>
+        <div class="mb-5">
+          <h3 class="font-semibold text-gray-800 mb-2">1. Set up Stripe Webhook</h3>
+          ${infoBox(`<ol class="list-decimal list-inside space-y-2">
+            <li>Open <a href="https://dashboard.stripe.com/test/webhooks/create" target="_blank" class="underline font-medium">Stripe → Webhooks → Add endpoint</a></li>
+            <li>In <strong>Endpoint URL</strong>, paste: <code class="bg-blue-100 px-1 rounded">{your-store-url}/api/webhooks/stripe</code></li>
+            <li>Click <strong>Select events</strong> → search <code>checkout.session.completed</code> → check it → <strong>Add events</strong></li>
+            <li>Click <strong>Add endpoint</strong></li>
+            <li>On the endpoint page, click <strong>Reveal</strong> under <strong>Signing secret</strong> — copy it (starts with <code class="bg-blue-100 px-1 rounded">whsec_</code>)</li>
+            <li>Go to <a href="https://vercel.com/dashboard" target="_blank" class="underline font-medium">Vercel Dashboard</a> → your project → <strong>Settings → Environment Variables</strong></li>
+            <li>Add variable: name = <code class="bg-blue-100 px-1 rounded">STRIPE_WEBHOOK_SECRET</code>, value = the signing secret you copied</li>
+            <li>Go to <strong>Deployments</strong> tab → click <strong>⋮</strong> on the latest → <strong>Redeploy</strong></li>
+          </ol>`)}
+        </div>
+        <div>
+          <h3 class="font-semibold text-gray-800 mb-2">2. Create Admin Account</h3>
+          ${infoBox(`<ol class="list-decimal list-inside space-y-2">
+            <li>Go to <a href="https://supabase.com/dashboard/project/_/auth/users" target="_blank" class="underline font-medium">Supabase → Authentication → Users</a></li>
+            <li>Click <strong>Add user → Create new user</strong></li>
+            <li>Enter your email and a password</li>
+            <li>You can now log in at <code class="bg-blue-100 px-1 rounded">{your-store-url}/admin</code></li>
+          </ol>`)}
+        </div>`,
+
+      8: () => `
+        <div class="text-center py-6">
+          <div class="text-6xl mb-4">🎉</div>
+          <h2 class="text-2xl font-bold text-gray-900 mb-3">Your Store is Live!</h2>
+          <p class="text-gray-600 mb-6">Congratulations! Your OpenShop store is set up and ready to sell.</p>
+          <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-left mb-6">
+            <p class="text-sm font-semibold text-emerald-800 mb-2">Quick Links</p>
+            <ul class="text-sm text-emerald-700 space-y-1">
+              <li>🛍️ Storefront: <span class="font-mono">{your-store-url}</span></li>
+              <li>⚙️ Admin: <span class="font-mono">{your-store-url}/admin</span></li>
+            </ul>
+          </div>
+          <p class="text-sm text-gray-500">Add your first product from the admin dashboard and start sharing your store link with customers!</p>
+        </div>`,
+    };
+
+    function saveCurrentStep() {
+      if (currentStep === 2) {
+        state.supabaseUrl = document.getElementById('supabase-url')?.value.trim() || state.supabaseUrl;
+        state.supabaseAnonKey = document.getElementById('supabase-anon-key')?.value.trim() || state.supabaseAnonKey;
+        state.supabaseServiceRoleKey = document.getElementById('supabase-service-role-key')?.value.trim() || state.supabaseServiceRoleKey;
+      } else if (currentStep === 3) {
+        state.resendApiKey = document.getElementById('resend-api-key')?.value.trim() || state.resendApiKey;
+        state.resendFromEmail = document.getElementById('resend-from-email')?.value.trim() || state.resendFromEmail;
+        state.adminEmail = document.getElementById('admin-email')?.value.trim() || state.adminEmail;
+      } else if (currentStep === 4) {
+        state.stripePublishableKey = document.getElementById('stripe-publishable-key')?.value.trim() || state.stripePublishableKey;
+        state.stripeSecretKey = document.getElementById('stripe-secret-key')?.value.trim() || state.stripeSecretKey;
+      } else if (currentStep === 5) {
+        state.storeName = document.getElementById('store-name')?.value.trim() || state.storeName;
+        state.locale = document.getElementById('store-locale')?.value || state.locale;
+      }
+    }
+
+    function render() {
+      document.getElementById('step-container').innerHTML = steps[currentStep]();
+      document.getElementById('progress-text').textContent = `Step ${currentStep} of ${totalSteps}`;
+      document.getElementById('progress-bar').style.width = `${(currentStep / totalSteps) * 100}%`;
+      document.getElementById('btn-back').classList.toggle('hidden', currentStep === 1);
+      const btnNext = document.getElementById('btn-next');
+      btnNext.textContent = currentStep === totalSteps ? 'Done' : (currentStep === 6 ? 'Next' : 'Next');
+    }
+
+    function goNext() {
+      if (currentStep === totalSteps) return;
+      saveCurrentStep();
+      currentStep++;
+      render();
+      window.scrollTo(0, 0);
+    }
+
+    function goBack() {
+      if (currentStep === 1) return;
+      saveCurrentStep();
+      currentStep--;
+      render();
+      window.scrollTo(0, 0);
+    }
+
+    function selectColor(name) {
+      state.themeColor = name;
+      COLORS.forEach(c => {
+        const btn = document.getElementById(`color-${c.name}`);
+        if (btn) {
+          btn.className = `w-10 h-10 rounded-full ${c.bg} transition-all ${c.name === name ? 'ring-4 ring-offset-2 ring-gray-400 scale-110' : 'hover:scale-105'}`;
+        }
+      });
+      const lbl = document.getElementById('color-label');
+      if (lbl) lbl.textContent = name;
+    }
+
+    function skipResend() {
+      state.resendApiKey = '';
+      state.resendFromEmail = 'onboarding@resend.dev';
+      state.adminEmail = '';
+      currentStep = 4;
+      render();
+      window.scrollTo(0, 0);
+    }
+
+    async function validateSupabase() {
+      const url = document.getElementById('supabase-url')?.value.trim();
+      const key = document.getElementById('supabase-anon-key')?.value.trim();
+      const status = document.getElementById('validate-status');
+      if (!url || !key) { status.textContent = 'Please fill in URL and Anon Key first.'; status.className = 'self-center text-sm text-red-600'; return; }
+      status.textContent = 'Testing...'; status.className = 'self-center text-sm text-gray-500';
+      try {
+        const res = await fetch(`${url}/rest/v1/`, { headers: { 'apikey': key, 'Authorization': `Bearer ${key}` } });
+        if (res.ok || res.status === 200 || res.status === 404) {
+          status.textContent = 'Connected!'; status.className = 'self-center text-sm text-green-600 font-medium';
+          document.getElementById('sql-section').classList.remove('hidden');
+          const ref = url.replace('https://', '').split('.')[0];
+          document.getElementById('sql-editor-link').href = `https://supabase.com/dashboard/project/${ref}/sql/new`;
+        } else {
+          status.textContent = `Error ${res.status}. Check your URL and key.`; status.className = 'self-center text-sm text-red-600';
+        }
+      } catch {
+        status.textContent = 'Connection failed. Check the URL is correct.'; status.className = 'self-center text-sm text-red-600';
+      }
+    }
+
+    async function copySQL() {
+      const btn = document.getElementById('copy-status');
+      try {
+        await navigator.clipboard.writeText(MIGRATION_SQL);
+        btn.textContent = 'Copied to clipboard!'; btn.className = 'ml-2 text-sm text-green-600';
+      } catch {
+        btn.textContent = 'Copy failed — please copy manually from the migration file.'; btn.className = 'ml-2 text-sm text-red-600';
+      }
+    }
+
+    render();
+  </script>
+</body>
+</html>
