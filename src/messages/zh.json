@@ -1,0 +1,119 @@
+{
+  "site": {
+    "name": "商店",
+    "tagline": "欢迎光临"
+  },
+  "nav": {
+    "home": "首页",
+    "cart": "购物车",
+    "admin": "管理"
+  },
+  "product": {
+    "addToCart": "加入购物车",
+    "outOfStock": "缺货",
+    "inStock": "有货",
+    "sort": {
+      "recommended": "推荐",
+      "newest": "最新",
+      "oldest": "最早",
+      "priceHigh": "价格从高到低",
+      "priceLow": "价格从低到高",
+      "popular": "热门"
+    }
+  },
+  "cart": {
+    "title": "购物车",
+    "empty": "购物车为空",
+    "subtotal": "小计",
+    "checkout": "去结算",
+    "remove": "删除",
+    "items": "件",
+    "continueShopping": "继续购物"
+  },
+  "checkout": {
+    "title": "结算",
+    "contactInfo": "联系信息",
+    "name": "姓名",
+    "email": "邮箱",
+    "phone": "电话",
+    "shippingAddress": "收货地址",
+    "notes": "备注（选填）",
+    "payNow": "立即支付",
+    "total": "合计"
+  },
+  "confirmation": {
+    "title": "订单已确认！",
+    "orderNumber": "订单号",
+    "thankYou": "感谢您的购买。您将收到一封确认邮件。",
+    "backHome": "返回首页"
+  },
+  "admin": {
+    "login": {
+      "title": "管理员登录",
+      "email": "邮箱",
+      "password": "密码",
+      "submit": "登录",
+      "error": "邮箱或密码错误"
+    },
+    "nav": {
+      "dashboard": "仪表盘",
+      "orders": "订单",
+      "products": "商品",
+      "settings": "设置",
+      "logout": "退出"
+    },
+    "dashboard": {
+      "title": "仪表盘",
+      "pendingOrders": "待处理订单",
+      "lowStock": "库存不足提醒",
+      "recentOrders": "最近订单"
+    },
+    "orders": {
+      "title": "订单",
+      "all": "全部",
+      "pending": "待处理",
+      "confirmed": "已确认",
+      "completed": "已完成",
+      "cancelled": "已取消",
+      "noOrders": "暂无订单",
+      "confirm": "确认",
+      "complete": "完成",
+      "cancel": "取消",
+      "orderDetails": "订单详情",
+      "customer": "客户",
+      "shipping": "配送",
+      "items": "商品",
+      "status": "状态",
+      "payment": "支付",
+      "paid": "已支付",
+      "unpaid": "未支付",
+      "refunded": "已退款"
+    },
+    "products": {
+      "title": "商品",
+      "addProduct": "添加商品",
+      "editProduct": "编辑商品",
+      "name": "名称",
+      "description": "描述",
+      "price": "价格",
+      "category": "分类",
+      "stock": "库存",
+      "image": "图片",
+      "active": "上架",
+      "save": "保存",
+      "saving": "保存中...",
+      "noProducts": "暂无商品",
+      "sortOrder": "推荐排序",
+      "moveUp": "上移",
+      "moveDown": "下移"
+    },
+    "settings": {
+      "title": "商店设置",
+      "logo": "商店Logo",
+      "uploadLogo": "上传Logo",
+      "removeLogo": "移除Logo",
+      "themeColor": "主题颜色",
+      "saved": "设置已保存"
+    }
+  }
+}

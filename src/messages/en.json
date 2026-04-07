@@ -1,0 +1,119 @@
+{
+  "site": {
+    "name": "Store",
+    "tagline": "Welcome to our shop"
+  },
+  "nav": {
+    "home": "Home",
+    "cart": "Cart",
+    "admin": "Admin"
+  },
+  "product": {
+    "addToCart": "Add to Cart",
+    "outOfStock": "Out of Stock",
+    "inStock": "In Stock",
+    "sort": {
+      "recommended": "Recommended",
+      "newest": "Newest",
+      "oldest": "Oldest",
+      "priceHigh": "Price: High to Low",
+      "priceLow": "Price: Low to High",
+      "popular": "Popular"
+    }
+  },
+  "cart": {
+    "title": "Your Cart",
+    "empty": "Your cart is empty",
+    "subtotal": "Subtotal",
+    "checkout": "Proceed to Checkout",
+    "remove": "Remove",
+    "items": "items",
+    "continueShopping": "Continue Shopping"
+  },
+  "checkout": {
+    "title": "Checkout",
+    "contactInfo": "Your Info",
+    "name": "Name",
+    "email": "Email",
+    "phone": "Phone",
+    "shippingAddress": "Shipping Address",
+    "notes": "Order Notes (optional)",
+    "payNow": "Pay Now",
+    "total": "Total"
+  },
+  "confirmation": {
+    "title": "Order Confirmed!",
+    "orderNumber": "Order Number",
+    "thankYou": "Thank you for your purchase. You will receive a confirmation email shortly.",
+    "backHome": "Back to Home"
+  },
+  "admin": {
+    "login": {
+      "title": "Admin Login",
+      "email": "Email",
+      "password": "Password",
+      "submit": "Sign In",
+      "error": "Invalid email or password"
+    },
+    "nav": {
+      "dashboard": "Dashboard",
+      "orders": "Orders",
+      "products": "Products",
+      "settings": "Settings",
+      "logout": "Logout"
+    },
+    "dashboard": {
+      "title": "Dashboard",
+      "pendingOrders": "Pending Orders",
+      "lowStock": "Low Stock Alerts",
+      "recentOrders": "Recent Orders"
+    },
+    "orders": {
+      "title": "Orders",
+      "all": "All",
+      "pending": "Pending",
+      "confirmed": "Confirmed",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "noOrders": "No orders found",
+      "confirm": "Confirm",
+      "complete": "Complete",
+      "cancel": "Cancel",
+      "orderDetails": "Order Details",
+      "customer": "Customer",
+      "shipping": "Shipping",
+      "items": "Items",
+      "status": "Status",
+      "payment": "Payment",
+      "paid": "Paid",
+      "unpaid": "Unpaid",
+      "refunded": "Refunded"
+    },
+    "products": {
+      "title": "Products",
+      "addProduct": "Add Product",
+      "editProduct": "Edit Product",
+      "name": "Name",
+      "description": "Description",
+      "price": "Price",
+      "category": "Category",
+      "stock": "Stock",
+      "image": "Image",
+      "active": "Active",
+      "save": "Save",
+      "saving": "Saving...",
+      "noProducts": "No products yet",
+      "sortOrder": "Recommended Order",
+      "moveUp": "Up",
+      "moveDown": "Down"
+    },
+    "settings": {
+      "title": "Store Settings",
+      "logo": "Store Logo",
+      "uploadLogo": "Upload Logo",
+      "removeLogo": "Remove Logo",
+      "themeColor": "Theme Color",
+      "saved": "Settings saved"
+    }
+  }
+}
