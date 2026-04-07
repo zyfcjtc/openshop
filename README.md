@@ -2,6 +2,8 @@
 
 An open-source one-click store builder. Launch a mobile-first online store in minutes — no coding required.
 
+English | [中文](./README.zh.md)
+
 ## Features
 
 - **Mobile-first storefront** — Product listing, detail pages, cart, and checkout optimized for phones
@@ -24,7 +26,7 @@ An open-source one-click store builder. Launch a mobile-first online store in mi
 
 ### Option 1: Setup Wizard (Recommended)
 
-Open `wizard/index.html` in your browser and follow the step-by-step guide.
+Open the [Setup Wizard](https://zyfcjtc.github.io/openshop/) and follow the step-by-step guide.
 
 ### Option 2: Manual Setup
 
