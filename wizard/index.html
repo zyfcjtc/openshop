@@ -272,7 +272,7 @@ $$ language plpgsql security definer;`;
 
       6: () => {
         const params = new URLSearchParams({
-          'repository-url': 'YOUR_GITHUB_REPO_URL',
+          'repository-url': 'https://github.com/zyfcjtc/openshop',
           'env': 'NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,SUPABASE_SERVICE_ROLE_KEY,STRIPE_SECRET_KEY,NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,RESEND_API_KEY,RESEND_FROM_EMAIL,ADMIN_EMAIL,NEXT_PUBLIC_STORE_NAME,NEXT_PUBLIC_LOCALE,NEXT_PUBLIC_THEME_COLOR',
           'envDescription[NEXT_PUBLIC_SUPABASE_URL]': 'Supabase project URL',
           'envDescription[NEXT_PUBLIC_SUPABASE_ANON_KEY]': 'Supabase anon key',
@@ -302,7 +302,12 @@ $$ language plpgsql security definer;`;
         return `
         <h2 class="text-xl font-bold text-gray-900 mb-1">Deploy to Vercel</h2>
         <p class="text-sm text-gray-500 mb-4">Deploy your store with one click. All your settings will be pre-filled.</p>
-        ${infoBox(`<strong>Before deploying:</strong> Make sure your OpenShop code is pushed to a GitHub repository. Replace <code class="bg-blue-100 px-1 rounded">YOUR_GITHUB_REPO_URL</code> in the deploy link with your actual repo URL (e.g. <code class="bg-blue-100 px-1 rounded">https://github.com/yourname/openshop</code>).`)}
+        ${infoBox(`<strong>What happens next:</strong><ol class="list-decimal list-inside space-y-1 mt-2">
+          <li>Click the button below — it opens Vercel with all your settings pre-filled</li>
+          <li>Sign in to Vercel (free) with your GitHub account</li>
+          <li>Vercel will fork the OpenShop code into your GitHub and deploy it</li>
+          <li>Wait ~60 seconds — your store URL will appear!</li>
+        </ol>`)}
         <div class="text-center py-4">
           <a href="${deployUrl}" target="_blank"
             class="inline-block px-8 py-4 bg-black text-white text-lg font-semibold rounded-xl hover:bg-gray-800 transition-colors shadow-lg">
