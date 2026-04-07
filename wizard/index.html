@@ -194,11 +194,12 @@ $$ language plpgsql security definer;`;
       2: () => `
         <h2 class="text-xl font-bold text-gray-900 mb-1">Supabase Setup</h2>
         <p class="text-sm text-gray-500 mb-4">Supabase is your database and authentication provider.</p>
-        ${infoBox(`<ol class="list-decimal list-inside space-y-1">
-          <li>Go to <a href="https://supabase.com" target="_blank" class="underline">supabase.com</a> and create a free account</li>
-          <li>Click <strong>New Project</strong> and fill in the details</li>
-          <li>Once created, go to <strong>Project Settings → API</strong></li>
-          <li>Copy the Project URL, anon key, and service_role key below</li>
+        ${infoBox(`<ol class="list-decimal list-inside space-y-2">
+          <li>Go to <a href="https://supabase.com/dashboard/projects" target="_blank" class="underline font-medium">supabase.com/dashboard</a> and create a free account</li>
+          <li>Click <strong>New Project</strong>, pick a name and password, then wait for it to finish</li>
+          <li>Go to <a href="https://supabase.com/dashboard/project/_/settings/api" target="_blank" class="underline font-medium">Project Settings → API</a> (or click Settings ⚙️ in the sidebar → API)</li>
+          <li>You'll see <strong>Project URL</strong> at the top — copy it</li>
+          <li>Under <strong>Project API keys</strong>, copy <code class="bg-blue-100 px-1 rounded">anon public</code> and <code class="bg-blue-100 px-1 rounded">service_role</code></li>
         </ol>`)}
         ${field('Project URL', 'supabase-url', 'https://xxxxxxxxxxxx.supabase.co', state.supabaseUrl)}
         ${field('Anon Key', 'supabase-anon-key', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...', state.supabaseAnonKey)}
@@ -221,25 +222,27 @@ $$ language plpgsql security definer;`;
         </div>`,
 
       3: () => `
-        <h2 class="text-xl font-bold text-gray-900 mb-1">Resend Setup</h2>
-        <p class="text-sm text-gray-500 mb-4">Resend sends order confirmation emails to your customers.</p>
-        ${infoBox(`<ol class="list-decimal list-inside space-y-1">
-          <li>Go to <a href="https://resend.com" target="_blank" class="underline">resend.com</a> and create a free account</li>
-          <li>Go to <strong>API Keys</strong> and create a new key</li>
-          <li>Optionally add your own domain under <strong>Domains</strong> for a custom from address</li>
+        <h2 class="text-xl font-bold text-gray-900 mb-1">Resend Setup <span class="text-sm font-normal text-gray-400">(Optional)</span></h2>
+        <p class="text-sm text-gray-500 mb-4">Resend sends order confirmation emails to customers and new-order alerts to you. You can skip this and add it later.</p>
+        ${infoBox(`<ol class="list-decimal list-inside space-y-2">
+          <li>Go to <a href="https://resend.com/signup" target="_blank" class="underline font-medium">resend.com/signup</a> and create a free account</li>
+          <li>Go to <a href="https://resend.com/api-keys" target="_blank" class="underline font-medium">API Keys</a> and click <strong>Create API Key</strong></li>
+          <li>Copy the key (starts with <code class="bg-blue-100 px-1 rounded">re_</code>) — you only see it once!</li>
         </ol>`)}
         ${field('API Key', 'resend-api-key', 're_xxxxxxxxxxxxxxxxxxxx', state.resendApiKey)}
         ${field('From Email', 'resend-from-email', 'onboarding@resend.dev', state.resendFromEmail)}
-        ${field('Admin Email', 'admin-email', 'you@example.com', state.adminEmail)}`,
+        ${field('Admin Email (where you receive order alerts)', 'admin-email', 'you@example.com', state.adminEmail)}
+        <button onclick="skipResend()" class="text-sm text-gray-500 hover:text-gray-700 underline">Skip — I'll add email later</button>`,
 
       4: () => `
         <h2 class="text-xl font-bold text-gray-900 mb-1">Stripe Setup</h2>
         <p class="text-sm text-gray-500 mb-4">Stripe handles payments including Apple Pay and Google Pay.</p>
-        ${infoBox(`<ol class="list-decimal list-inside space-y-1">
-          <li>Go to <a href="https://stripe.com" target="_blank" class="underline">stripe.com</a> and create a free account</li>
-          <li>In the Stripe Dashboard, go to <strong>Developers → API keys</strong></li>
-          <li>Copy the Publishable key and Secret key below</li>
-          <li>You can use test keys first, then switch to live keys when ready</li>
+        ${infoBox(`<ol class="list-decimal list-inside space-y-2">
+          <li>Go to <a href="https://dashboard.stripe.com/register" target="_blank" class="underline font-medium">stripe.com</a> and create a free account</li>
+          <li>Go to <a href="https://dashboard.stripe.com/test/apikeys" target="_blank" class="underline font-medium">Developers → API keys</a></li>
+          <li>Copy the <strong>Publishable key</strong> (starts with <code class="bg-blue-100 px-1 rounded">pk_</code>)</li>
+          <li>Click <strong>Reveal test key</strong> to see the <strong>Secret key</strong> (starts with <code class="bg-blue-100 px-1 rounded">sk_</code>)</li>
+          <li>💡 Use test keys first, switch to live keys when you're ready to accept real payments</li>
         </ol>`)}
         ${field('Publishable Key', 'stripe-publishable-key', 'pk_test_...', state.stripePublishableKey)}
         ${field('Secret Key', 'stripe-secret-key', 'sk_test_...', state.stripeSecretKey)}`,
@@ -315,25 +318,23 @@ $$ language plpgsql security definer;`;
         <p class="text-sm text-gray-500 mb-4">Two final steps to complete your store setup.</p>
         <div class="mb-5">
           <h3 class="font-semibold text-gray-800 mb-2">1. Set up Stripe Webhook</h3>
-          ${infoBox(`<ol class="list-decimal list-inside space-y-1">
-            <li>Go to <a href="https://dashboard.stripe.com/webhooks" target="_blank" class="underline">Stripe Dashboard → Webhooks</a></li>
+          ${infoBox(`<ol class="list-decimal list-inside space-y-2">
+            <li>Open <a href="https://dashboard.stripe.com/test/webhooks/create" target="_blank" class="underline font-medium">Stripe → Webhooks → Add endpoint</a></li>
+            <li>In <strong>Endpoint URL</strong>, paste: <code class="bg-blue-100 px-1 rounded">{your-store-url}/api/webhooks/stripe</code></li>
+            <li>Click <strong>Select events</strong> → search <code>checkout.session.completed</code> → check it → <strong>Add events</strong></li>
             <li>Click <strong>Add endpoint</strong></li>
-            <li>Paste your store URL: <code class="bg-blue-100 px-1 rounded">{your-store-url}/api/webhooks/stripe</code></li>
-            <li>Under <strong>Select events</strong>, choose <strong>checkout.session.completed</strong></li>
-            <li>Click <strong>Add endpoint</strong></li>
-            <li>Copy the <strong>Signing secret</strong> (starts with <code>whsec_</code>)</li>
-            <li>Go to your Vercel project → <strong>Settings → Environment Variables</strong></li>
-            <li>Add <code class="bg-blue-100 px-1 rounded">STRIPE_WEBHOOK_SECRET</code> with the signing secret</li>
-            <li>Redeploy your project for the change to take effect</li>
+            <li>On the endpoint page, click <strong>Reveal</strong> under <strong>Signing secret</strong> — copy it (starts with <code class="bg-blue-100 px-1 rounded">whsec_</code>)</li>
+            <li>Go to <a href="https://vercel.com/dashboard" target="_blank" class="underline font-medium">Vercel Dashboard</a> → your project → <strong>Settings → Environment Variables</strong></li>
+            <li>Add variable: name = <code class="bg-blue-100 px-1 rounded">STRIPE_WEBHOOK_SECRET</code>, value = the signing secret you copied</li>
+            <li>Go to <strong>Deployments</strong> tab → click <strong>⋮</strong> on the latest → <strong>Redeploy</strong></li>
           </ol>`)}
         </div>
         <div>
           <h3 class="font-semibold text-gray-800 mb-2">2. Create Admin Account</h3>
-          ${infoBox(`<ol class="list-decimal list-inside space-y-1">
-            <li>Go to your <a href="https://supabase.com/dashboard" target="_blank" class="underline">Supabase Dashboard</a></li>
-            <li>Select your project → <strong>Authentication → Users</strong></li>
-            <li>Click <strong>Invite user</strong> and enter your email</li>
-            <li>Check your email and set a password</li>
+          ${infoBox(`<ol class="list-decimal list-inside space-y-2">
+            <li>Go to <a href="https://supabase.com/dashboard/project/_/auth/users" target="_blank" class="underline font-medium">Supabase → Authentication → Users</a></li>
+            <li>Click <strong>Add user → Create new user</strong></li>
+            <li>Enter your email and a password</li>
             <li>You can now log in at <code class="bg-blue-100 px-1 rounded">{your-store-url}/admin</code></li>
           </ol>`)}
         </div>`,
@@ -407,6 +408,15 @@ $$ language plpgsql security definer;`;
       });
       const lbl = document.getElementById('color-label');
       if (lbl) lbl.textContent = name;
+    }
+
+    function skipResend() {
+      state.resendApiKey = '';
+      state.resendFromEmail = 'onboarding@resend.dev';
+      state.adminEmail = '';
+      currentStep = 4;
+      render();
+      window.scrollTo(0, 0);
     }
 
     async function validateSupabase() {
