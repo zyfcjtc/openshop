@@ -1,8 +1,14 @@
-export default function HomePage() {
-  return (
-    <div className="py-12 text-center">
-      <h1 className="text-2xl font-bold">Welcome to the store</h1>
-      <p className="text-gray-500 mt-2">Products coming soon.</p>
-    </div>
-  );
+import { createClient } from "@/lib/supabase/server";
+import { Product } from "@/lib/types";
+import { HomeContent } from "./home-content";
+
+export default async function HomePage() {
+  const supabase = await createClient();
+  const { data: products } = await supabase
+    .from("products")
+    .select("*")
+    .eq("active", true)
+    .order("created_at", { ascending: false });
+
+  return <HomeContent products={(products as Product[]) ?? []} />;
 }
